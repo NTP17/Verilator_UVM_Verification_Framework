@@ -2,6 +2,13 @@
 
 A reusable framework for running UVM testbenches on Verilator with native SystemVerilog assertion (SVA) and functional coverage support via a C++ NFA engine and DPI-C bridge.
 
+## Dependencies
+
+- [Verilator](https://verilator.org/) (tested with v5.046)
+- UVM (IEEE 1800.2-2020 compatible, with DPI support, tested with [Verilator's official test suite](https://github.com/verilator/verilator/tree/master/test_regress/t/uvm/))
+- Python 3 (for `svpp.py`)
+- GNU Make
+
 ## Typical Project Structure
 
 ```
@@ -203,10 +210,3 @@ The C++ NFA engine (`lib/sva_engine.cpp`) evaluates assertions and collects cove
 | `regress_report.txt` | Per-test pass/fail + regression summary |
 | `<testname>.log` | Full simulation output (when `LOG=1`) |
 | `coverage_annotated/` | Source-annotated coverage (when `COVER=1`) |
-
-## Dependencies
-
-- [Verilator](https://verilator.org/) (tested with v5.046)
-- UVM (IEEE 1800.2-2020 compatible, with DPI support, tested with [Verilator's official test suite](https://github.com/verilator/verilator/tree/master/test_regress/t/uvm/))
-- Python 3 (for `svpp.py`)
-- GNU Make
