@@ -165,5 +165,5 @@ $(PP_DIR):
 	mkdir -p $(PP_DIR)
 
 clean:
-	rm -rf obj_dir $(PP_DIR) dump.vcd coverage*.dat coverage_annotated \
+	rm -rf obj_dir $(PP_DIR) *.vcd coverage*.dat coverage_annotated \
 		covergroup_report.txt sva_report.txt *.log $(REGRESS_RPT)
