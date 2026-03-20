@@ -5,8 +5,8 @@ A reusable framework for running UVM testbenches on Verilator with native System
 ## Dependencies
 
 - [Verilator](https://verilator.org/) (tested with v5.046)
-- UVM (IEEE 1800.2-2020 compatible, with DPI support, tested with [uvm-verilator by CHIPS Alliance](https://github.com/chipsalliance/uvm-verilator))
 - GNU Make
+- UVM is bundled in the `uvm/` directory ([uvm-verilator by CHIPS Alliance](https://github.com/chipsalliance/uvm-verilator)); select with `UVM=2020`, `UVM=1.2`, etc., or disable with `UVM=0`
 
 ## Typical Project Structure
 
@@ -25,6 +25,11 @@ A reusable framework for running UVM testbenches on Verilator with native System
 │   ├── svpp              #   Source-to-source transformer for SVA + covergroup (binary)
 │   ├── merger            #   Merges per-test SVA reports into a single report (binary)
 │   └── src/              #   Source code for the above tools
+├── uvm/                  # Bundled UVM versions (selected via UVM_VER)
+│   ├── uvm-verilator-uvm-1.1d/
+│   ├── uvm-verilator-uvm-1.2/
+│   ├── uvm-verilator-uvm-2017-1.1/
+│   └── uvm-verilator-uvm-2020-3.1/   # default
 ├── gen/                  # Auto-generated preprocessed files (disposable)
 ├── obj_dir/              # Verilator build output (disposable)
 ├── rtl/                  # RTL design files
@@ -61,6 +66,7 @@ All options can be combined: `make run TEST=my_test COUNT=50 SEED=42 LOG=1 DUMP=
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `UVM`    | `0` | UVM version (`1.1d`, `1.2`, `2017`, `2020`); set `0` to disable |
 | `TEST`   | *(set in Makefile)* | UVM test name (`+UVM_TESTNAME`) |
 | `COUNT`  | `1` | Transaction count per test (compile-time define) |
 | `SEED`   | `random` | Random seed; set to a number for reproducibility (`+verilator+seed+N`) |
@@ -72,11 +78,11 @@ All options can be combined: `make run TEST=my_test COUNT=50 SEED=42 LOG=1 DUMP=
 ## Regression Examples
 
 ```bash
-make regress                                        # Run all tests, random seed
-make regress COUNT=50 SEED=42                       # Fixed seed, 50 transactions each
-make regress COVER=1 LOG=1                          # With coverage merge and per-test logs
-make regress REGRESS_LIST=tb/smoke.list             # Use a custom test list
-make regress REGRESS_LIST=tb/nightly.list COUNT=100 # Nightly regression
+make regress UVM=1.1d                                        # Run all tests, random seed
+make regress UVM=1.2 COUNT=50 SEED=42                        # Fixed seed, 50 transactions each
+make regress UVM=2017 COVER=1 LOG=1                          # With coverage merge and per-test logs
+make regress UVM=2020 REGRESS_LIST=tb/smoke.list             # Use a custom test list
+make regress UVM=2020 REGRESS_LIST=tb/nightly.list COUNT=100 # Nightly regression
 ```
 
 - Tests are listed in a regression file (default: `tb/regression.list`), one test name per line
@@ -142,13 +148,11 @@ The C++ NFA engine (`lib/sva_engine.cpp`) evaluates assertions and collects cove
 
 ## Setting Up a New Project
 
-1. Copy `lib/`, `tools/`, and `Makefile` to your new project directory
+1. Copy `lib/`, `tools/`, `uvm/`, and `Makefile` to your new project directory
 
-2. Set `UVM_HOME` in the Makefile (or export it as an environment variable)
+2. Update `TEST ?=` in the Makefile to your default test name
 
-3. Update `TEST ?=` in the Makefile to your default test name
-
-4. Create `filelist.f` listing your sources, include paths, and top module:
+3. Create `filelist.f` listing your sources, include paths, top module, and custom defines:
    ```
    // Include directories
    +incdir+src
@@ -166,14 +170,20 @@ The C++ NFA engine (`lib/sva_engine.cpp`) evaluates assertions and collects cove
    src/my_rtl.sv
    src/my_pkg.sv
 
-   // Testbench
+   // Custom file list
+   -f tb/rtl.f
+
+   // Custom defines
+   +define+CLOCK_PERIOD=10ns
+
+   // Top testbench
    tb/tb_top.sv
    ```
    - Files listed here are preprocessed into `gen/` and compiled by Verilator
    - Files in `+incdir` paths that are `` `include``'d by packages are auto-discovered and preprocessed, but not compiled as top-level sources
    - Always include `+incdir+gen` so Verilator can find preprocessed include files
 
-5. Create a regression list file (e.g. `tb/regression.list`):
+4. Create a regression list file (e.g. `tb/regression.list`):
    ```
    # Smoke tests
    my_basic_test
@@ -183,10 +193,11 @@ The C++ NFA engine (`lib/sva_engine.cpp`) evaluates assertions and collects cove
    my_error_inject_test
    ```
 
-6. Run:
+5. Run:
    ```bash
-   make regress                  # Run default regression list
-   make all TEST=my_basic_test   # Run a single test
+   make all                      # Run a non-UVM testbench
+   make all UVM=1.2 TEST=my_test # Use UVM 1.2
+   make regress UVM=2020         # Run default regression list
    ```
 
 ## Reports

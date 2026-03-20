@@ -2,11 +2,18 @@
 ## Project-specific sources are listed in FILELIST.
 ## All .sv files are preprocessed through svpp into PP_DIR.
 
-UVM_HOME      = /home/truefu/uvm-verilator
-#UVM_HOME      = /home/truefu/uvm-verilator-uvm-1.1d
+# UVM version selection
+# UVM=0 disables UVM; any other value selects a bundled version from uvm/
+# Available: 1.1d, 1.2, 2017, 2020
+UVM          ?= 0
+ifneq ($(UVM),0)
+# Resolve short names (2017 → 2017-1.1, 2020 → 2020-3.1)
+_UVM_VER     := $(or $(wildcard uvm/uvm-verilator-uvm-$(UVM)),$(firstword $(wildcard uvm/uvm-verilator-uvm-$(UVM)-*)))
+UVM_HOME      = $(_UVM_VER)
 UVM_PKG       = $(UVM_HOME)/src/uvm_pkg.sv
 UVM_DPI_DIR   = $(UVM_HOME)/src/dpi
 UVM_DPI_SRC   = $(UVM_DPI_DIR)/uvm_dpi.cc
+endif
 
 # SVA + Coverage engine library
 SVA_ENGINE    = lib/sva_engine.cpp
@@ -78,11 +85,15 @@ REGRESS_LIST  ?= tb/regression.list
 VERILATOR     = verilator
 VFLAGS        = --binary --timing --trace
 VFLAGS       += -j 0
-VFLAGS       += -CFLAGS "-I$(UVM_DPI_DIR) -I$(CURDIR)/lib -DVERILATOR -std=c++17"
 VFLAGS       += --vpi
 VFLAGS       += --assert
 VFLAGS       += -Wno-fatal
+ifneq ($(UVM),0)
+VFLAGS       += -CFLAGS "-I$(UVM_DPI_DIR) -I$(CURDIR)/lib -DVERILATOR -std=c++17"
 VFLAGS       += +incdir+$(UVM_HOME)/src
+else
+VFLAGS       += -CFLAGS "-I$(CURDIR)/lib -DVERILATOR -std=c++17"
+endif
 
 ifeq ($(SEED),random)
 SEED_VAL     := $(shell shuf -i 1-2147483647 -n 1)
@@ -114,6 +125,7 @@ endif
 all: compile run
 
 compile: $(SV_PPS) $(INC_PPS) $(V_PPS)
+ifneq ($(UVM),0)
 	$(VERILATOR) $(VFLAGS) \
 		$(FLIST_FLAGS) \
 		$(UVM_PKG) \
@@ -122,6 +134,14 @@ compile: $(SV_PPS) $(INC_PPS) $(V_PPS)
 		$(SVA_ENGINE) \
 		$(SVA_DPI) \
 		$(VPI_DRIVE)
+else
+	$(VERILATOR) $(VFLAGS) \
+		$(FLIST_FLAGS) \
+		$(SV_PPS) \
+		$(SVA_ENGINE) \
+		$(SVA_DPI) \
+		$(VPI_DRIVE)
+endif
 
 run:
 	@{ echo "SEED: $(SEED_VAL)"; ./$(SIM_EXE) $(PLUSARGS); } 2>&1 $(call LOG_CMD,$(TEST))
