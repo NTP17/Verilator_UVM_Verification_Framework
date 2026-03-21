@@ -6,7 +6,7 @@ A reusable framework for running UVM testbenches on Verilator with native System
 
 - [Verilator](https://verilator.org/) (tested with v5.046)
 - GNU Make
-- UVM is bundled in the `uvm/` directory ([uvm-verilator by CHIPS Alliance](https://github.com/chipsalliance/uvm-verilator)); select with `UVM=1.1d` or `UVM=2020`, or disable with `UVM=0`
+- UVM is bundled in the `uvm/` directory ([uvm-verilator by CHIPS Alliance](https://github.com/chipsalliance/uvm-verilator)); select with `UVM=1.1d`, `UVM=1.2`, `UVM=2017`, or `UVM=2020`, or disable with `UVM=0`
 
 ## Typical Project Structure
 
@@ -27,6 +27,8 @@ A reusable framework for running UVM testbenches on Verilator with native System
 │   └── src/              #   Source code for the above tools
 ├── uvm/                  # Bundled UVM versions (selected via UVM=)
 │   ├── uvm-verilator-uvm-1.1d/
+│   ├── uvm-verilator-uvm-1.2/
+│   ├── uvm-verilator-uvm-2017-1.0-vlt/
 │   └── uvm-verilator-uvm-2020-3.1/
 ├── gen/                  # Auto-generated preprocessed files (disposable)
 ├── obj_dir/              # Verilator build output (disposable)
@@ -64,7 +66,7 @@ All options can be combined: `make run TEST=my_test COUNT=50 SEED=42 LOG=1 DUMP=
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `UVM`    | `0` | UVM version (`1.1d`, `2020`); set `0` to disable |
+| `UVM`    | `0` | UVM version (`1.1d`, `1.2`, `2017`, `2020`); set `0` to disable |
 | `TEST`   | *(set in Makefile)* | UVM test name (`+UVM_TESTNAME`) |
 | `COUNT`  | `1` | Transaction count per test (compile-time define) |
 | `SEED`   | `random` | Random seed; set to a number for reproducibility (`+verilator+seed+N`) |
@@ -76,11 +78,10 @@ All options can be combined: `make run TEST=my_test COUNT=50 SEED=42 LOG=1 DUMP=
 ## Regression Examples
 
 ```bash
-make regress UVM=1.1d                                        # Run all tests, random seed
-make regress UVM=2020 COUNT=50 SEED=42                       # Fixed seed, 50 transactions each
-make regress UVM=1.1d COVER=1 LOG=1                          # With coverage merge and per-test logs
-make regress UVM=2020 REGRESS_LIST=tb/smoke.list             # Use a custom test list
-make regress UVM=2020 REGRESS_LIST=tb/nightly.list COUNT=100 # Nightly regression
+make regress UVM=1.1d                            # Run all tests, random seed
+make regress UVM=2020 COUNT=50 SEED=42           # Fixed seed, 50 transactions each
+make regress UVM=1.2 COVER=1 LOG=1               # With coverage merge and per-test logs
+make regress UVM=2017 REGRESS_LIST=tb/smoke.list # Use a custom test list
 ```
 
 - Tests are listed in a regression file (default: `tb/regression.list`), one test name per line

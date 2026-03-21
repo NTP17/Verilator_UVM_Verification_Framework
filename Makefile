@@ -4,7 +4,7 @@
 
 # UVM version selection
 # UVM=0 disables UVM; any other value selects a bundled version from uvm/
-# Available: 1.1d, 2020
+# Available: 1.1d, 1.2, 2017, 2020
 UVM          ?= 0
 ifneq ($(UVM),0)
 # Resolve short names (2020 → 2020-3.1)
@@ -127,7 +127,7 @@ endif
 
 .PHONY: all compile run clean regress pp
 
-all: compile run
+all: clean compile run
 
 compile: $(SV_PPS) $(INC_PPS) $(V_PPS)
 ifneq ($(UVM),0)
@@ -155,7 +155,7 @@ REGRESS_RPT   = regress_report.txt
 
 REGRESS_LOG   = regress.log
 
-regress: compile
+regress: clean compile
 	@rpt=$(REGRESS_RPT); \
 	rlog=$(REGRESS_LOG); \
 	pass=0; fail=0; num=0; \
