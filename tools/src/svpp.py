@@ -1132,6 +1132,92 @@ def _fix_initial_nba(lines):
     return result
 
 
+def _fix_tb_event_scheduling(lines):
+    r"""Insert ``#0;`` after standalone event controls in testbench code.
+
+    In IEEE 1800, blocking assignments executed right after ``@(posedge clk)``
+    are in the Active region — the same region where the DUT evaluates.  The
+    process evaluation order among Active-region processes is nondeterministic,
+    creating a race: the DUT may see signal values driven by the testbench in
+    the same cycle, or it may not, depending on the simulator.
+
+    Inserting ``#0;`` after the event control pushes the testbench process to
+    the Inactive region (IEEE 1800 §4.4.2.2).  The DUT's Active-region
+    evaluation completes first, then the testbench drives new signal values.
+    The DUT will not see those values until the next clock edge.
+
+    Verilator 5.046+ with ``--timing`` supports ``#0`` with proper Inactive-
+    region scheduling (``--sched-zero-delay`` auto-detection).
+
+    Scope: only inserts ``#0;`` inside ``task`` bodies and ``always begin``
+    blocks (testbench code converted from ``initial`` by ``_fix_initial_nba``).
+    DUT ``always @(...)`` / ``always_ff`` blocks are unaffected because they
+    use the event control in the block header, not as standalone statements.
+    """
+    result = []
+    # Track testbench scopes: task bodies and always-begin blocks
+    in_tb_scope = False
+    scope_depth = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Enter a testbench scope
+        if not in_tb_scope:
+            if re.match(r'^\s*task\b', line):
+                in_tb_scope = True
+                scope_depth = 0
+            elif re.match(r'^\s*always\s+begin\b', line):
+                in_tb_scope = True
+                scope_depth = 0
+
+        # Track nesting depth within the scope
+        if in_tb_scope:
+            for _ in re.finditer(r'\b(begin|fork)\b', stripped):
+                scope_depth += 1
+            for _ in re.finditer(r'\b(end|join|join_any|join_none)\b', stripped):
+                scope_depth -= 1
+            if re.match(r'^\s*endtask\b', line) or \
+               re.match(r'^\s*endfunction\b', line):
+                in_tb_scope = False
+            elif scope_depth < 0:
+                in_tb_scope = False
+
+        if not in_tb_scope:
+            result.append(line)
+            continue
+
+        # --- Standalone event control: @(posedge/negedge ...) ; ---
+        m_standalone = re.match(
+            r'^(\s*)(?:repeat\s*\([^)]*\)\s*)?'
+            r'@\s*\(\s*(?:posedge|negedge)\s+\w+\s*\)\s*;\s*$',
+            line,
+        )
+        if m_standalone:
+            result.append(line)
+            result.append(f'{m_standalone.group(1)}#0;')
+            continue
+
+        # --- while (...) @(posedge/negedge ...) ; ---
+        # Transform to: while (...) begin @(...); #0; end
+        m_while = re.match(
+            r'^(\s*)(while\s*\([^)]*\)\s*)'
+            r'(@\s*\(\s*(?:posedge|negedge)\s+\w+\s*\))\s*;\s*$',
+            line,
+        )
+        if m_while:
+            indent = m_while.group(1)
+            while_part = m_while.group(2)
+            event_part = m_while.group(3)
+            result.append(
+                f'{indent}{while_part}begin {event_part}; #0; end')
+            continue
+
+        result.append(line)
+
+    return result
+
+
 def _fix_super_new(lines):
     """Move super.new() before the begin block in constructors.
 
@@ -2014,6 +2100,11 @@ def preprocess_file(input_path, output_path=None, clk_half_period=5):
     # that use non-blocking assignments and event controls (Verilator
     # INITIALDLY workaround — NBA in initial blocks is treated as blocking)
     output_lines = _fix_initial_nba(output_lines)
+
+    # Post-processing: insert #0 after event controls in testbench code to
+    # push signal drives to the Inactive region (avoids active-region races
+    # where Verilator's process evaluation order differs from commercial sims)
+    output_lines = _fix_tb_event_scheduling(output_lines)
 
     # Post-processing: rewrite 'wait(vif.cb.signal)' to clock-edge polling
     # so Verilator respects clocking-block sampling semantics
