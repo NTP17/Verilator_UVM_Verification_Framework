@@ -106,7 +106,10 @@ else
 SEED_VAL     := $(SEED)
 endif
 VFLAGS       += +define+COUNT=$(COUNT)
-PLUSARGS      = +UVM_TESTNAME=$(TEST) +UVM_VERBOSITY=UVM_MEDIUM +verilator+seed+$(SEED_VAL)
+PLUSARGS      = +UVM_VERBOSITY=UVM_MEDIUM +verilator+seed+$(SEED_VAL)
+ifneq ($(TEST),)
+PLUSARGS      += +UVM_TESTNAME=$(TEST)
+endif
 ifneq ($(DUMP),0)
 PLUSARGS      += +dump
 endif
